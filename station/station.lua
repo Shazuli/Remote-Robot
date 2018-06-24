@@ -6,7 +6,7 @@ local event = require("event")
 local ser = require("serialization")
 local thread = require("thread")
 local d = require("computer")
-local matrix = require("matrix")
+--local matrix = require("matrix")
 
 local GPU = c.proxy("332a93bc-f0a6-4c71-9460-d7a7d6ee0d2c")
 local APU = c.proxy("4ba6d276-efab-474c-ba48-bcbd7fd62353")
@@ -88,6 +88,30 @@ local function addHistory(x,screen,hist)
   --history[1] = history[1] + 1
 end
 
+local function checkBoundaries(arr)
+  for _,i in ipairs(arr) do
+    for _,d in ipairs(i) do
+      local x,_,z = d.get3DPos()
+      --print(table.unpack(j))
+      --[[if x > 4 or x < -4 then
+        d.setAlpha(0)
+      else
+        d.setAlpha(0.7)
+      end
+      if z > 4 or z < -4 then
+        d.setAlpha(0)
+      else
+        d.setAlpha(0.7)
+      end--]]
+      if x >= -4 and x <= 4 then
+        d.setAlpha(0.7)
+      else
+        d.setAlpha(0)
+      end
+    end
+  end
+end
+
 local function transform(arr,dir)
   for _,i in ipairs(arr) do
     for _,d in ipairs(i) do
@@ -103,6 +127,7 @@ local function transform(arr,dir)
       end
     end
   end
+  checkBoundaries(arr)
 end
 
 local function HSL(hue, saturation, lightness, alpha)
@@ -211,7 +236,7 @@ gButtons.createNewButton("test",nil,"Rotate",5,21,35,14,{255,0,0},0.4,function(x
       table.insert(o,{y[xz].get3DPos()})
     end--]]
 
-    o = matrix.transpose(o)
+    --o = matrix.transpose(o)
     for i,xz in ipairs(y) do
       xz.set3DPos(o[i][1],o[i][2],o[i][3])
       --print(o[i][1],o[i][2],o[i][3])
