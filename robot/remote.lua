@@ -1,5 +1,5 @@
 local computer = require("computer")
-local c = require("component")
+c = require("component")
 local event = require("event")
 local ser = require("serialization")
 local tty = require("tty")
