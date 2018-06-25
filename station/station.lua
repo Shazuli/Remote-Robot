@@ -12,12 +12,12 @@ local GPU = c.proxy("332a93bc-f0a6-4c71-9460-d7a7d6ee0d2c")
 local APU = c.proxy("4ba6d276-efab-474c-ba48-bcbd7fd62353")
 --local glasses = c.glasses
 local movements = {
-  {"forward","/\\","require('component').robot.move(3)",50,50},
-  {"left","<","require('component').robot.turn(false)",35,65},
-  {"back","\\/","require('component').robot.move(2)",50,65},
-  {"right",">","require('component').robot.turn(true)",65,65},
-  {"up","/\\","require('component').robot.move(1)",82,50},
-  {"down","\\/","require('component').robot.move(0)",82,65}
+  {"forward","/\\","c.robot.move(3)",50,50},
+  {"left","<","c.robot.turn(false)",35,65},
+  {"back","\\/","c.robot.move(2)",50,65},
+  {"right",">","c.robot.turn(true)",65,65},
+  {"up","/\\","c.robot.move(1)",82,50},
+  {"down","\\/","c.robot.move(0)",82,65}
 }
 local history = {{2,0},{2,0}}
 local terrain = {}
@@ -103,7 +103,7 @@ local function checkBoundaries(arr)
       else
         d.setAlpha(0.7)
       end--]]
-      if x >= -4 and x <= 4 then
+      if x >= -4 and x <= 4 and z >= -4 and z <= 4 then
         d.setAlpha(0.7)
       else
         d.setAlpha(0)
@@ -231,42 +231,22 @@ gButtons.createNewButton("scan",nil,"Scan",5,5,35,14,{255,0,0},0.4,function(x)
   gButtons.Color(x)
 end)
 
-gButtons.createNewButton("test",nil,"Rotate",5,21,35,14,{255,0,0},0.4,function(x)
+--[[gButtons.createNewButton("test",nil,"Rotate",5,21,35,14,{255,0,0},0.4,function(x)
   --addHistory(tostring(#blocks[1]),GPU,1)
-  --[[for _,i in ipairs(blocks) do
-    for _,d in ipairs(i) do
-      local o = {d.get3DPos()}
-      d.set3DPos(o[1],o[2]+1,o[3])
-    end
-  end--]]
   for _,y in ipairs(blocks) do
     local o = {}
     for _,xz in ipairs(y) do
       table.insert(o,{xz.get3DPos()})
     end
-    --[[for xz in pairs(y) do
-      table.insert(o,{y[xz].get3DPos()})
-    end--]]
-
-    --o = matrix.transpose(o)
     for i,xz in ipairs(y) do
-      --xz.set3DPos(o[i][1],o[i][2],o[i][3])
       xz.set3DPos(matrix.rotate({xz.get3DPos()},matrix.TCW))
-      --print(o[i][1],o[i][2],o[i][3])
-      --y[xz].set3DPos(table.unpack(o[xz]))
-      --table.insert(o,{y[xz].get3DPos()})
-      --y[xz].set3DPos(table.unpack(o[xz]))
-      --y[xz].set3DPos(table.unpack(o[xz]))
     end
-    --break
   end
 
   gButtons.Color(x,{0,255,0})
-  --addHistory("Test " .. count,GPU,1)
-  --count = count + 1
   os.sleep(0.4)
   gButtons.Color(x)
-end)
+end)--]]
 --name,group,label,x,y,w,h,color,alpha,callback
 --[[gButtons.createNewButton("forward","movement","/\\",50,50,15,15,{255,0,0},0.4,function(x)
   c.tunnel.send("mov","require('component').robot.move(3)")
