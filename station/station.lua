@@ -6,7 +6,7 @@ local event = require("event")
 local ser = require("serialization")
 local thread = require("thread")
 local d = require("computer")
---local matrix = require("matrix")
+local matrix = require("matrix")
 
 local GPU = c.proxy("332a93bc-f0a6-4c71-9460-d7a7d6ee0d2c")
 local APU = c.proxy("4ba6d276-efab-474c-ba48-bcbd7fd62353")
@@ -130,6 +130,18 @@ local function transform(arr,dir)
   checkBoundaries(arr)
 end
 
+local function rotate(rot)
+  for _,y in ipairs(blocks) do
+    local o = {}
+    for _,xz in ipairs(y) do
+      table.insert(o,{xz.get3DPos()})
+    end
+    for i,xz in ipairs(y) do
+      xz.set3DPos(matrix.rotate({xz.get3DPos()},rot))
+    end
+  end
+end
+
 local function HSL(hue, saturation, lightness, alpha)
     if hue < 0 or hue > 360 then
         return 0, 0, 0, alpha
@@ -238,7 +250,8 @@ gButtons.createNewButton("test",nil,"Rotate",5,21,35,14,{255,0,0},0.4,function(x
 
     --o = matrix.transpose(o)
     for i,xz in ipairs(y) do
-      xz.set3DPos(o[i][1],o[i][2],o[i][3])
+      --xz.set3DPos(o[i][1],o[i][2],o[i][3])
+      xz.set3DPos(matrix.rotate({xz.get3DPos()},matrix.TCW))
       --print(o[i][1],o[i][2],o[i][3])
       --y[xz].set3DPos(table.unpack(o[xz]))
       --table.insert(o,{y[xz].get3DPos()})
@@ -264,6 +277,12 @@ end)--]]
 for _,i in ipairs(movements) do
   gButtons.createNewButton(i[1],"movement",i[2],i[4],i[5],15,15,{255,0,0},0.4,function(x)
     c.tunnel.send("mov",i[3])
+    if x == "left" then
+      rotate(matrix.TCW)
+    end
+    if x == "right" then
+      rotate(matrix.TACW)
+    end
     transform(blocks,i[1])
     gButtons.Color(x,{0,255,0})
     os.sleep(0.4)
