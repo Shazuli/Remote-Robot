@@ -27,7 +27,7 @@ local facing = "W" -- S W N E (+Z -X -Z +X)
 local yVal = -3
 
 local count = 0
-
+local isRunning = true
 
 local digitDisplays = {
   {
@@ -173,49 +173,80 @@ local function HSL(hue, saturation, lightness, alpha)
     return (r+m)*255,(g+m)*255,(b+m)*255
 end
 
+local function extractBlocks(blocks)
+  local result = {}
+  while blocks > 0 do
+    table.insert(result, blocks & 1)
+    blocks = blocks >> 1
+  end
+  return result
+end
+
 --[[lights.digit(3,digitDisplays[1],0xff033d)
 lights.digit(5,digitDisplays[2],0xff033d)
 lights.digit(9,digitDisplays[3],0xff033d)--]]
-
 --GPU.set(25,5,"Le GPU")
 --APU.set(25,5,"La APU")
+local function buildCompleteScan(slices)
+  -- addBlock({x, y, z}, {255, 0, 0})
+  for i, slice in pairs(slices) do
+    for j, chunk in pairs(slice) do
+      -- local blockData = extractBlocks(chunk)
+      -- for k, d in pairs(blockData) do
+      k = 1
+      while chunk > 0 do
+        -- The positioning gets a little tricky here... Lemme run this on a whiteboard real quick lol. Ok.
+        if chunk & 1 == 1 then
+          local x = (k - 1) % 9 - 4 -- It's correct
+          local y = j*7 - 4 - math.floor((k - 1)/9) -- Yeah that seems correct (might be a lil easier)
+          local z = -5 + i
+          local b = addBlock({x,y,z},{0,0,255}) --Should it return a table? extractBlocks? Yes.
+          os.sleep(0)
+
+          if blocks[y+4] == nil then
+            blocks[y+4] = {b}
+          else
+            table.insert(blocks[y+4],b)
+          end
+        end
+        chunk = chunk >> 1
+        k = k + 1
+      end --Down here \/
+    end
+  end
+end
+
 
 for i=1,5 do d.beep() end
 
-local function receiveScanData(_,_,_,_,_,msg1,msg2,msg3,msg4)
+-- local function receiveScanData(_,_,_,_,_,msg1,msg2,msg3,msg4)
+local function receiveScanData(scanInfo, blockData)
   --print(msg1)
-  addHistory(msg1,APU,2)
+  -- addHistory(tostring(msg1),APU,2)
+  --local _,err = pcall(function() addHistory(getBlocks(msg1)) end)
+  addHistory(tostring(blockData),APU,2)
+  buildCompleteScan(blockData)
+  -- addHistory(tostring(data),APU,2)
+  --print(err)
+
+  --addHistory(tostring(data),APU,2)
   if msg1 == "scanData" then
     yVal = -3
   else
-    --[[addBlock(table.unpack(decompress(msg1)),{0,255,0})
-    addBlock(table.unpack(decompress(msg2)),{0,255,0})
-    addBlock(table.unpack(decompress(msg3)),{0,255,0})
-    addBlock(table.unpack(decompress(msg4)),{0,255,0})--]]
-    local coord = {decompress(msg1),decompress(msg2),decompress(msg3),decompress(msg4)}
+    --[[local coord = {decompress(msg1),decompress(msg2),decompress(msg3),decompress(msg4)}
     for i in pairs(coord) do
       yVal = coord[i][2] + 4
       local thisHue = 360 - ((coord[i][1]+5))/9*360
       local b = addBlock({coord[i][1],coord[i][2],coord[i][3]},{HSL(thisHue, 1, 0.5, 1)})
       table.insert(terrain,coord[i])
-      --table.insert(blocks,b)
-      --blocks[yVal][#blocks[yVal+1]] = b
-      --table.insert(blocks[yVal],b)
-      --blocks[yVal] = b
       thread.create(function()
-        --print(yVal)
         if blocks[yVal] == nil then
           blocks[yVal] = {b}
         else
           table.insert(blocks[yVal],b)
         end
       end)
-
-      --addHistory(yVal,GPU,1)
-      --print(yVal)
-      --table.insert(blocks,b)
-      --if coord[i][2] then print(coord[i][1],coord[i][2],coord[i][3],thisHue) end
-    end
+    end--]]
   end
 end
 --event,_,linkingCard,_,_,msg1,msg2,msg3,msg4
@@ -263,7 +294,11 @@ for _,i in ipairs(movements) do
     if x == "right" then
       rotate(matrix.TACW)
     end
-    transform(blocks,i[1])
+    local _,_,_,_,_,r = event.pull(10,"modem_message")
+    print(r)
+    if r ~= "blocked" then
+      transform(blocks,i[1])
+    end --Ah nevermind
     gButtons.Color(x,{0,255,0})
     os.sleep(0.4)
     gButtons.Color(x)
@@ -277,18 +312,31 @@ end)
 local function update()
   --print(event.pull(1/20,"modem_message"))
   --thread.create(function() gButtons.update() end)
-  local _,_,_,_,_,o = event.pull(1/20,"modem_message")
+  local packet = {event.pull(1/20,"modem_message")}
   --print(o)
-  if o == "scanData" then
-    event.listen("modem_message",receiveScanData)
-    addHistory("Enabled Data Transfer",APU,2)
+  if packet[6] == "scanData" then
+    receiveScanData(packet[7], ser.unserialize(packet[8]))
+    addHistory("Received Blocks from Remote",APU,2)
+    -- event.listen("modem_message",receiveScanData)
+    -- addHistory("Enabled Data Transfer",APU,2)
   end
-  if o == "scanDataComplete" then
-    event.ignore("modem_message",receiveScanData)
-    addHistory("Disabled Data Transfer",APU,2)
-  end
+  -- if packet[6] == "scanDataComplete" then
+  --   event.ignore("modem_message",receiveScanData)
+  --   addHistory("Disabled Data Transfer",APU,2)
+  -- end
   --thread.create(function() gButtons.update() end)
   --os.sleep(1/20)
 end
 
-while true do update() end
+local terminate = thread.create(function()
+  event.pull("interrupted")
+  print("Killed the program.")
+  gThread:kill()
+  isRunning = false
+  --os.exit()
+end)
+
+while true do
+  update()
+  if not isRunning then os.exit() end
+end
