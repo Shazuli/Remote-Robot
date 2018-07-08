@@ -30,16 +30,27 @@ function API.initialize(graph)
   API.groupsNames = {}
 end
 
-local function colorBtn(btn,color)
+function API.OverwriteGPU(newGPU)
+  gpu = newGPU
+end
+
+local function colorBtn(btn,color,label)
   local background = gpu.getBackground()
   local x,y = API.buttons[btn].posRect[1],API.buttons[btn].posRect[2]
   local w,h = API.buttons[btn].sizeRect[1],API.buttons[btn].sizeRect[2]
   gpu.setBackground(color)
   gpu.fill(x,y,w,h," ")
+  if type(label) == "table" then
+    for i in pairs(label) do
+      gpu.set(x,y+i,string.sub(label[i],1,14))
+    end
+  else
+    gpu.set(x+2,y,label)
+  end
   gpu.setBackground(background)
 end
 
-function API.createNewButton(name,group,label,x,y,w,h,color,callback)
+function API.createNewButton(name,label,group,x,y,w,h,color,callback,scr)
   if group ~= nil then
     if not has_value(API.groupsNames,group) then
       table.insert(API.groupsNames,group)
@@ -61,32 +72,32 @@ function API.createNewButton(name,group,label,x,y,w,h,color,callback)
     customData = {},
     callbk = callback,
     vsble = true,
-    txt = label
+    screen = scr,
+    label = label,
+    currentColor = color,
+    currentLabel = label
+    --currentColor = color
     --posTxt = {x + (w / 2) - ((string.len(label) / 2) + (w / 4.5)),y + (h / 3)}
   }
-  colorBtn(name,color)
+  colorBtn(name,color,label)
   return true
 end
 function API.update(refreshRate)
-  local e,_,xV,yV = event.pull(refreshRate,"touch")
+  local e,screen,xV,yV = event.pull(refreshRate,"touch")
   if e == nil then return end
 
   for i in pairs(API.buttonsNames) do
     if
-        API.buttons[API.buttonsNames[i]].vsble and xV >= API.buttons[API.buttonsNames[i]].posRect[1] and xV <= API.buttons[API.buttonsNames[i]].posRect[1]+API.buttons[API.buttonsNames[i]].sizeRect[1] and
-        yV >= API.buttons[API.buttonsNames[i]].posRect[2] and yV <= API.buttons[API.buttonsNames[i]].posRect[2]+API.buttons[API.buttonsNames[i]].sizeRect[2] then
+       API.buttons[API.buttonsNames[i]].screen == screen and API.buttons[API.buttonsNames[i]].vsble and xV >= API.buttons[API.buttonsNames[i]].posRect[1] and xV <= API.buttons[API.buttonsNames[i]].posRect[1]+API.buttons[API.buttonsNames[i]].sizeRect[1]-1 and
+        yV >= API.buttons[API.buttonsNames[i]].posRect[2] and yV <= API.buttons[API.buttonsNames[i]].posRect[2]+API.buttons[API.buttonsNames[i]].sizeRect[2]-1 then
 
-          t = thread.create(function()
+          local t = thread.create(function()
 
             local _,err = pcall(function() API.buttons[API.buttonsNames[i]].callbk(API.buttonsNames[i]) end)
 
             if err then print("Error on " .. API.buttonsNames[i] .. " press:" .. "\n" .. err) end
 
-            --print(t:status())
-            --t:kill()
           end)
-          --os.sleep(2)
-          --print(t:status())
     end
   end
 end
@@ -99,6 +110,7 @@ local function isGroup(val)
   end
   return false
 end
+
 
 function API.printGroups()
   for i in pairs(API.groupsNames) do
@@ -146,25 +158,35 @@ function API.Color(button,color)
     if aGroup then
       for d in pairs(API.groups[groupN]) do
         --API.buttons[API.groups[groupN][d]].rect.setColor(API.buttons[API.groups[groupN][d]].colorRect)
-        colorBtn(API.buttons[API.groups[groupN][d]],API.buttons[API.groups[groupN][d]].colorRect)
+        colorBtn(API.buttons[API.groups[groupN][d]],API.buttons[API.groups[groupN][d]].colorRect,API.buttons[API.groups[groupN][d]].currentLabel)
+        API.buttons[API.groups[groupN][d]].colorRect = color
       end
     else
       --API.buttons[button].rect.setColor(table.unpack(API.buttons[button].colorRect))
-      colorBtn(button,API.buttons[API.groups[groupN][d]].colorRect)
+      colorBtn(button,API.buttons[button].colorRect,API.buttons[button].currentLabel)
+      API.buttons[button].currentColor = API.buttons[button].colorRect
     end
   else
+    --button,API.buttons[button].currentColor = color
     if aGroup then
       for d in pairs(API.groups[groupN]) do
         --API.buttons[API.groups[groupN][d]].rect.setColor(table.unpack(color))
-        colorBtn(API.buttons[API.groups[groupN][d]],color)
+        colorBtn(API.buttons[API.groups[groupN][d]],color,API.buttons[API.groups[groupN][d]].currentLabel)
+        API.buttons[API.groups[groupN][d]].currentColor = color
       end
     else
       --API.buttons[button].rect.setColor(table.unpack(color))
-      colorBtn(button,color)
+      colorBtn(button,color,API.buttons[button].currentLabel)
+      API.buttons[button].currentColor = color
     end
   end
 end
 
+function API.Label(button,newLabel)
+  colorBtn(button,API.buttons[button].currentColor,newLabel)
+  API.buttons[button].currentLabel = newLabel
+  return true
+end
 
 function API.addToGroup(button,group)
   if group ~= nil then
